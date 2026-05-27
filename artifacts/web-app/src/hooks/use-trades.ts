@@ -109,6 +109,28 @@ export function useInsertTrade() {
   });
 }
 
+export function useUpdateTrade() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: string; trade: Trade; beforeFile?: File | null; afterFile?: File | null }>({
+    mutationFn: async ({ id, trade, beforeFile, afterFile }) => {
+      const updates: Partial<DbTrade> = { ...toDbRow(trade) };
+
+      if (beforeFile) {
+        const url = await uploadScreenshot(Number(id), beforeFile, "before");
+        if (url) updates.before_screenshot_url = url;
+      }
+      if (afterFile) {
+        const url = await uploadScreenshot(Number(id), afterFile, "after");
+        if (url) updates.after_screenshot_url = url;
+      }
+
+      const { error } = await supabase.from("trades").update(updates).eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+  });
+}
+
 export function useDeleteTrade() {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({

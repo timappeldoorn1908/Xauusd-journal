@@ -3,9 +3,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { NewTradeForm } from "@/components/new-trade-form";
 import { TradeCalendar } from "@/components/trade-calendar";
 import { WeeklySummary, Trade } from "@/components/weekly-summary";
-import { useTrades, useInsertTrade, useDeleteTrade } from "@/hooks/use-trades";
+import { useTrades, useInsertTrade, useUpdateTrade, useDeleteTrade } from "@/hooks/use-trades";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { BarChart2, PlusCircle, Trash2, X, ChevronDown, Camera, ImagePlus, Loader2, AlertCircle } from "lucide-react";
+import {
+  BarChart2,
+  PlusCircle,
+  Trash2,
+  X,
+  ChevronDown,
+  Camera,
+  ImagePlus,
+  Loader2,
+  AlertCircle,
+  Pencil,
+} from "lucide-react";
 
 type Tab = "new-trade" | "overview";
 
@@ -13,15 +25,23 @@ export default function Journal() {
   const [activeTab, setActiveTab] = useState<Tab>("new-trade");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
   const { data: trades = [], isLoading, isError, error } = useTrades();
   const insertTrade = useInsertTrade();
+  const updateTrade = useUpdateTrade();
   const deleteTrade = useDeleteTrade();
 
   async function handleSave(trade: Trade, beforeFile?: File | null, afterFile?: File | null) {
     await insertTrade.mutateAsync({ trade, beforeFile, afterFile });
     setSelectedDate(null);
     setActiveTab("overview");
+  }
+
+  async function handleUpdate(trade: Trade, beforeFile?: File | null, afterFile?: File | null) {
+    if (!editingTrade) return;
+    await updateTrade.mutateAsync({ id: editingTrade.id, trade: { ...trade, id: editingTrade.id }, beforeFile, afterFile });
+    setEditingTrade(null);
   }
 
   function handleDelete(id: string, date: string) {
@@ -272,11 +292,7 @@ export default function Journal() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                       {trade.beforeScreenshotUrl ? (
                                         <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
-                                          <img
-                                            src={trade.beforeScreenshotUrl}
-                                            alt="Before entry"
-                                            className="w-full h-full object-cover"
-                                          />
+                                          <img src={trade.beforeScreenshotUrl} alt="Before entry" className="w-full h-full object-cover" />
                                         </div>
                                       ) : (
                                         <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
@@ -287,11 +303,7 @@ export default function Journal() {
                                       )}
                                       {trade.afterScreenshotUrl ? (
                                         <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
-                                          <img
-                                            src={trade.afterScreenshotUrl}
-                                            alt="After exit"
-                                            className="w-full h-full object-cover"
-                                          />
+                                          <img src={trade.afterScreenshotUrl} alt="After exit" className="w-full h-full object-cover" />
                                         </div>
                                       ) : (
                                         <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
@@ -303,7 +315,14 @@ export default function Journal() {
                                     </div>
                                   </div>
 
-                                  <div className="flex justify-end pt-1">
+                                  <div className="flex items-center justify-between pt-1">
+                                    <button
+                                      onClick={() => setEditingTrade(trade)}
+                                      className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                      Edit trade
+                                    </button>
                                     <button
                                       onClick={() => handleDelete(trade.id, trade.date)}
                                       disabled={isDeleting}
@@ -327,6 +346,23 @@ export default function Journal() {
           )}
         </main>
       </div>
+
+      {/* Edit Trade Dialog */}
+      <Dialog open={!!editingTrade} onOpenChange={(open) => { if (!open) setEditingTrade(null); }}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 max-w-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-white text-base font-semibold">Edit Trade</DialogTitle>
+            <p className="text-xs text-zinc-500 mt-0.5">Update the details of this trade. Screenshots can optionally be replaced.</p>
+          </DialogHeader>
+          {editingTrade && (
+            <NewTradeForm
+              initialTrade={editingTrade}
+              onSave={handleUpdate}
+              saving={updateTrade.isPending}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
