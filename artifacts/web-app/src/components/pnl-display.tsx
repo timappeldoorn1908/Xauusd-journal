@@ -2,27 +2,25 @@ import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface PnlDisplayProps {
-  direction: "long" | "short";
+  type: "long" | "short";
   entryPrice: number;
   exitPrice: number;
   lotSize: number;
 }
 
-function calculate(direction: "long" | "short", entry: number, exit: number, lots: number) {
+function calculate(type: "long" | "short", entry: number, exit: number, lots: number) {
   const raw = exit - entry;
-  const multiplier = direction === "long" ? 1 : -1;
+  const multiplier = type === "long" ? 1 : -1;
   const priceDiff = raw * multiplier;
-
   const pips = Math.round(priceDiff * 10 * 100) / 100;
   const pnl = Math.round(priceDiff * lots * 100 * 100) / 100;
-
   return { pips, pnl };
 }
 
-export function PnlDisplay({ direction, entryPrice, exitPrice, lotSize }: PnlDisplayProps) {
+export function PnlDisplay({ type, entryPrice, exitPrice, lotSize }: PnlDisplayProps) {
   const valid = entryPrice > 0 && exitPrice > 0 && lotSize > 0;
   const { pips, pnl } = valid
-    ? calculate(direction, entryPrice, exitPrice, lotSize)
+    ? calculate(type, entryPrice, exitPrice, lotSize)
     : { pips: 0, pnl: 0 };
 
   const isProfit = pnl > 0;

@@ -3,12 +3,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Trade } from "./weekly-summary";
 
-function computePnl(trade: Trade): number {
-  const raw = trade.exitPrice - trade.entryPrice;
-  const multiplier = trade.direction === "long" ? 1 : -1;
-  return Math.round(raw * multiplier * trade.lotSize * 100 * 100) / 100;
-}
-
 interface TradeCalendarProps {
   trades: Trade[];
   selectedDate: string | null;
@@ -28,7 +22,7 @@ export function TradeCalendar({ trades, selectedDate, onDayClick }: TradeCalenda
   const pnlByDate: Record<string, number> = {};
   for (const trade of trades) {
     const key = trade.date.slice(0, 10);
-    pnlByDate[key] = (pnlByDate[key] ?? 0) + computePnl(trade);
+    pnlByDate[key] = (pnlByDate[key] ?? 0) + trade.pnl;
   }
 
   const firstDay = new Date(current.year, current.month, 1);
@@ -72,6 +66,8 @@ export function TradeCalendar({ trades, selectedDate, onDayClick }: TradeCalenda
     onDayClick(selectedDate === key ? null : key);
   }
 
+  const hasAnyTrades = Object.keys(pnlByDate).length > 0;
+
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
       <div className="flex items-center justify-between mb-5">
@@ -88,16 +84,10 @@ export function TradeCalendar({ trades, selectedDate, onDayClick }: TradeCalenda
             </button>
           )}
           <div className="flex items-center gap-1">
-            <button
-              onClick={prev}
-              className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-            >
+            <button onClick={prev} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button
-              onClick={next}
-              className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-            >
+            <button onClick={next} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -175,14 +165,10 @@ export function TradeCalendar({ trades, selectedDate, onDayClick }: TradeCalenda
           <div className="w-2.5 h-2.5 rounded-sm bg-zinc-600/50 border border-zinc-600/30" />
           <span className="text-[11px] text-zinc-500">Breakeven</span>
         </div>
-        {hasTrades(pnlByDate) && (
-          <span className="text-[11px] text-zinc-600 ml-auto">Click a day to filter</span>
+        {hasAnyTrades && (
+          <span className="text-[11px] text-zinc-600 ml-auto">Tap a day to filter</span>
         )}
       </div>
     </div>
   );
-}
-
-function hasTrades(pnlByDate: Record<string, number>) {
-  return Object.keys(pnlByDate).length > 0;
 }

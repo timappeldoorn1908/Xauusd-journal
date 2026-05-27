@@ -4,19 +4,17 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 export interface Trade {
   id: string;
   date: string;
-  direction: "long" | "short";
+  type: "long" | "short";
   entryPrice: number;
   exitPrice: number;
   lotSize: number;
+  pips: number;
+  pnl: number;
   reason: string;
   emotion: string;
   rating: number;
-}
-
-function computePnl(trade: Trade): number {
-  const raw = trade.exitPrice - trade.entryPrice;
-  const multiplier = trade.direction === "long" ? 1 : -1;
-  return Math.round(raw * multiplier * trade.lotSize * 100 * 100) / 100;
+  beforeScreenshotUrl?: string | null;
+  afterScreenshotUrl?: string | null;
 }
 
 function getWeekRange() {
@@ -39,23 +37,20 @@ export function WeeklySummary({ trades }: WeeklySummaryProps) {
   const { monday, sunday } = getWeekRange();
 
   const weekTrades = trades.filter((t) => {
-    const d = new Date(t.date);
+    const d = new Date(t.date + "T00:00:00");
     return d >= monday && d <= sunday;
   });
 
-  const wins = weekTrades.filter((t) => computePnl(t) > 0);
-  const losses = weekTrades.filter((t) => computePnl(t) < 0);
-  const totalPnl = weekTrades.reduce((sum, t) => sum + computePnl(t), 0);
+  const wins = weekTrades.filter((t) => t.pnl > 0);
+  const losses = weekTrades.filter((t) => t.pnl < 0);
+  const totalPnl = weekTrades.reduce((sum, t) => sum + t.pnl, 0);
   const winRate = weekTrades.length > 0 ? (wins.length / weekTrades.length) * 100 : 0;
 
   const avgRR =
     weekTrades.length > 0
       ? weekTrades.reduce((sum, t) => {
-          const pnl = computePnl(t);
-          const entry = t.entryPrice;
-          const exit = t.exitPrice;
-          const diff = Math.abs(exit - entry);
-          return sum + (diff > 0 ? diff / entry : 0);
+          const diff = Math.abs(t.exitPrice - t.entryPrice);
+          return sum + (diff > 0 ? diff / t.entryPrice : 0);
         }, 0) / weekTrades.length
       : 0;
 
@@ -107,9 +102,9 @@ export function WeeklySummary({ trades }: WeeklySummaryProps) {
         <div className="rounded-xl bg-zinc-800/50 border border-zinc-700/40 p-3.5 min-w-0">
           <p className="text-[11px] uppercase tracking-widest text-zinc-500 mb-2">Total P&amp;L</p>
           <div className="flex items-center gap-1 min-w-0">
-            {hasData && totalPnl > 0 && <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0 hidden sm:block" />}
-            {hasData && totalPnl < 0 && <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400 shrink-0 hidden sm:block" />}
-            {hasData && totalPnl === 0 && <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 shrink-0 hidden sm:block" />}
+            {hasData && totalPnl > 0 && <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0 hidden sm:block" />}
+            {hasData && totalPnl < 0 && <TrendingDown className="w-3.5 h-3.5 text-red-400 shrink-0 hidden sm:block" />}
+            {hasData && totalPnl === 0 && <Minus className="w-3.5 h-3.5 text-zinc-400 shrink-0 hidden sm:block" />}
             <p
               className={cn(
                 "text-sm sm:text-2xl font-bold tabular-nums truncate",

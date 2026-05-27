@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { PnlDisplay } from "@/components/pnl-display";
 import { StarRating } from "@/components/star-rating";
 import { Trade } from "@/components/weekly-summary";
-import { Camera, ImagePlus, TrendingDown, TrendingUp, Loader2 } from "lucide-react";
+import { Camera, ImagePlus, TrendingDown, TrendingUp, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,7 +39,7 @@ const EMOTIONS = [
 ];
 
 interface NewTradeFormProps {
-  onSave: (trade: Trade) => void | Promise<void>;
+  onSave: (trade: Trade, beforeFile?: File | null, afterFile?: File | null) => void | Promise<void>;
   saving?: boolean;
 }
 
@@ -47,8 +47,11 @@ export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
   const { toast } = useToast();
   const today = new Date().toISOString().slice(0, 10);
 
+  const beforeInputRef = useRef<HTMLInputElement>(null);
+  const afterInputRef = useRef<HTMLInputElement>(null);
+
   const [date, setDate] = useState(today);
-  const [direction, setDirection] = useState<"long" | "short">("long");
+  const [type, setType] = useState<"long" | "short">("long");
   const [entryPrice, setEntryPrice] = useState("");
   const [exitPrice, setExitPrice] = useState("");
   const [lotSize, setLotSize] = useState("");
@@ -56,33 +59,43 @@ export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
   const [customReason, setCustomReason] = useState("");
   const [emotion, setEmotion] = useState("");
   const [rating, setRating] = useState(0);
-  const [beforeLabel, setBeforeLabel] = useState<string | null>(null);
-  const [afterLabel, setAfterLabel] = useState<string | null>(null);
+  const [beforeFile, setBeforeFile] = useState<File | null>(null);
+  const [afterFile, setAfterFile] = useState<File | null>(null);
 
   const entry = parseFloat(entryPrice) || 0;
   const exit = parseFloat(exitPrice) || 0;
   const lots = parseFloat(lotSize) || 0;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const finalReason = reason === "Other" ? customReason.trim() : reason;
     if (!date || !entryPrice || !exitPrice || !lotSize || !finalReason || !emotion) {
       toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
+
+    const raw = exit - entry;
+    const mult = type === "long" ? 1 : -1;
+    const pips = Math.round(raw * mult * 10 * 100) / 100;
+    const pnl = Math.round(raw * mult * lots * 100 * 100) / 100;
+
     const trade: Trade = {
       id: crypto.randomUUID(),
       date,
-      direction,
+      type,
       entryPrice: entry,
       exitPrice: exit,
       lotSize: lots,
+      pips,
+      pnl,
       reason: finalReason,
       emotion,
       rating,
     };
-    onSave(trade);
+
+    await onSave(trade, beforeFile, afterFile);
     toast({ title: "Trade saved", description: "Your trade has been added to the journal." });
+
     setEntryPrice("");
     setExitPrice("");
     setLotSize("");
@@ -90,10 +103,12 @@ export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
     setCustomReason("");
     setEmotion("");
     setRating(0);
-    setBeforeLabel(null);
-    setAfterLabel(null);
+    setBeforeFile(null);
+    setAfterFile(null);
     setDate(today);
-    setDirection("long");
+    setType("long");
+    if (beforeInputRef.current) beforeInputRef.current.value = "";
+    if (afterInputRef.current) afterInputRef.current.value = "";
   }
 
   return (
@@ -115,10 +130,10 @@ export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setDirection("long")}
+                onClick={() => setType("long")}
                 className={cn(
                   "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all",
-                  direction === "long"
+                  type === "long"
                     ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
                     : "bg-zinc-800/40 border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600"
                 )}
@@ -128,10 +143,10 @@ export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setDirection("short")}
+                onClick={() => setType("short")}
                 className={cn(
                   "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all",
-                  direction === "short"
+                  type === "short"
                     ? "bg-red-500/15 border-red-500/40 text-red-400"
                     : "bg-zinc-800/40 border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600"
                 )}
@@ -180,12 +195,7 @@ export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
 
           <div className="space-y-2">
             <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Result</Label>
-            <PnlDisplay
-              direction={direction}
-              entryPrice={entry}
-              exitPrice={exit}
-              lotSize={lots}
-            />
+            <PnlDisplay type={type} entryPrice={entry} exitPrice={exit} lotSize={lots} />
           </div>
         </div>
 
@@ -240,41 +250,74 @@ export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
 
           <div className="space-y-2">
             <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Screenshots</Label>
+            <input
+              ref={beforeInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setBeforeFile(e.target.files?.[0] ?? null)}
+            />
+            <input
+              ref={afterInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setAfterFile(e.target.files?.[0] ?? null)}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setBeforeLabel("before_chart.png")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed transition-all text-xs font-medium",
-                  beforeLabel
-                    ? "border-amber-500/40 bg-amber-500/5 text-amber-400"
-                    : "border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400 hover:bg-zinc-800/30"
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => beforeInputRef.current?.click()}
+                  className={cn(
+                    "w-full flex flex-col items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed transition-all text-xs font-medium",
+                    beforeFile
+                      ? "border-amber-500/40 bg-amber-500/5 text-amber-400"
+                      : "border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400 hover:bg-zinc-800/30"
+                  )}
+                >
+                  <Camera className="w-5 h-5 shrink-0" />
+                  <span className="px-2 truncate w-full text-center">
+                    {beforeFile ? beforeFile.name : "Before Entry"}
+                  </span>
+                </button>
+                {beforeFile && (
+                  <button
+                    type="button"
+                    onClick={() => { setBeforeFile(null); if (beforeInputRef.current) beforeInputRef.current.value = ""; }}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-zinc-700 hover:bg-red-500 text-white flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
                 )}
-              >
-                <Camera className="w-5 h-5" />
-                {beforeLabel ? (
-                  <span className="text-center px-2 truncate w-full text-center">{beforeLabel}</span>
-                ) : (
-                  <span>Before Entry</span>
+              </div>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => afterInputRef.current?.click()}
+                  className={cn(
+                    "w-full flex flex-col items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed transition-all text-xs font-medium",
+                    afterFile
+                      ? "border-amber-500/40 bg-amber-500/5 text-amber-400"
+                      : "border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400 hover:bg-zinc-800/30"
+                  )}
+                >
+                  <ImagePlus className="w-5 h-5 shrink-0" />
+                  <span className="px-2 truncate w-full text-center">
+                    {afterFile ? afterFile.name : "After Exit"}
+                  </span>
+                </button>
+                {afterFile && (
+                  <button
+                    type="button"
+                    onClick={() => { setAfterFile(null); if (afterInputRef.current) afterInputRef.current.value = ""; }}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-zinc-700 hover:bg-red-500 text-white flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAfterLabel("after_chart.png")}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed transition-all text-xs font-medium",
-                  afterLabel
-                    ? "border-amber-500/40 bg-amber-500/5 text-amber-400"
-                    : "border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400 hover:bg-zinc-800/30"
-                )}
-              >
-                <ImagePlus className="w-5 h-5" />
-                {afterLabel ? (
-                  <span className="text-center px-2 truncate w-full text-center">{afterLabel}</span>
-                ) : (
-                  <span>After Exit</span>
-                )}
-              </button>
+              </div>
             </div>
           </div>
         </div>
