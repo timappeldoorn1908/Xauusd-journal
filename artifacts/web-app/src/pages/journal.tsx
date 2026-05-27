@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { NewTradeForm } from "@/components/new-trade-form";
 import { TradeCalendar } from "@/components/trade-calendar";
 import { WeeklySummary, Trade } from "@/components/weekly-summary";
 import { cn } from "@/lib/utils";
-import { BarChart2, PlusCircle, Trash2, X } from "lucide-react";
+import { BarChart2, PlusCircle, Trash2, X, ChevronDown, Camera, ImagePlus } from "lucide-react";
 
 const SAMPLE_TRADES: Trade[] = [
   {
@@ -103,6 +104,7 @@ export default function Journal() {
   const [activeTab, setActiveTab] = useState<Tab>("new-trade");
   const [trades, setTrades] = useState<Trade[]>(SAMPLE_TRADES);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function handleSave(trade: Trade) {
     setTrades((prev) => [...prev, trade]);
@@ -247,76 +249,159 @@ export default function Journal() {
                       const pnl = tradePnl(trade);
                       const pips = tradePips(trade);
                       const isProfit = pnl > 0;
+                      const isExpanded = expandedId === trade.id;
 
                       return (
                         <div
                           key={trade.id}
-                          className="group flex items-center justify-between py-3 px-4 rounded-xl bg-zinc-800/30 border border-zinc-700/30 hover:bg-zinc-800/50 transition-colors"
+                          className={cn(
+                            "group rounded-xl border transition-colors overflow-hidden",
+                            isExpanded
+                              ? "bg-zinc-800/60 border-zinc-600/50"
+                              : "bg-zinc-800/30 border-zinc-700/30 hover:bg-zinc-800/50"
+                          )}
                         >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={cn(
-                                "w-1.5 h-8 rounded-full shrink-0",
-                                isProfit ? "bg-emerald-400" : "bg-red-400"
-                              )}
-                            />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-white">
-                                  {new Date(trade.date + "T00:00:00").toLocaleDateString("en-GB", {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                  })}
-                                </span>
-                                <span
-                                  className={cn(
-                                    "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
-                                    trade.direction === "long"
-                                      ? "bg-emerald-500/15 text-emerald-400"
-                                      : "bg-red-500/15 text-red-400"
-                                  )}
-                                >
-                                  {trade.direction}
-                                </span>
+                          {/* Summary row — always visible, tap to expand */}
+                          <button
+                            type="button"
+                            onClick={() => setExpandedId(isExpanded ? null : trade.id)}
+                            className="w-full flex items-center justify-between py-3 px-4 text-left"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className={cn(
+                                  "w-1.5 h-8 rounded-full shrink-0",
+                                  isProfit ? "bg-emerald-400" : "bg-red-400"
+                                )}
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-medium text-white">
+                                    {new Date(trade.date + "T00:00:00").toLocaleDateString("en-GB", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
+                                      trade.direction === "long"
+                                        ? "bg-emerald-500/15 text-emerald-400"
+                                        : "bg-red-500/15 text-red-400"
+                                    )}
+                                  >
+                                    {trade.direction}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-zinc-500 mt-0.5 truncate">{trade.reason}</p>
                               </div>
-                              <p className="text-[11px] text-zinc-500 mt-0.5">{trade.reason}</p>
                             </div>
-                          </div>
 
-                          <div className="flex items-center gap-2 sm:gap-5 text-right">
-                            <div>
-                              <p className="text-[11px] text-zinc-600 mb-0.5">Pips</p>
-                              <p className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
-                                {pips >= 0 ? "+" : ""}{pips.toFixed(1)}
-                              </p>
+                            <div className="flex items-center gap-2 sm:gap-4 text-right shrink-0 ml-2">
+                              <div>
+                                <p className="text-[11px] text-zinc-600 mb-0.5">Pips</p>
+                                <p className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
+                                  {pips >= 0 ? "+" : ""}{pips.toFixed(1)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] text-zinc-600 mb-0.5">P&amp;L</p>
+                                <p className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
+                                  {pnl >= 0 ? "+$" : "-$"}{Math.abs(pnl).toFixed(2)}
+                                </p>
+                              </div>
+                              <motion.div
+                                animate={{ rotate: isExpanded ? 180 : 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-zinc-500"
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </motion.div>
                             </div>
-                            <div>
-                              <p className="text-[11px] text-zinc-600 mb-0.5">P&amp;L</p>
-                              <p className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
-                                {pnl >= 0 ? "+$" : "-$"}{Math.abs(pnl).toFixed(2)}
-                              </p>
-                            </div>
-                            <div className="hidden sm:flex">
-                              {Array.from({ length: 5 }, (_, i) => (
-                                <svg
-                                  key={i}
-                                  className={cn("w-3 h-3", i < trade.rating ? "text-amber-400" : "text-zinc-700")}
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                              ))}
-                            </div>
-                            <button
-                              onClick={() => handleDelete(trade.id)}
-                              className="ml-1 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-                              title="Delete trade"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          </button>
+
+                          {/* Expanded detail panel */}
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <motion.div
+                                key="detail"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                style={{ overflow: "hidden" }}
+                              >
+                                <div className="px-4 pb-4 space-y-4 border-t border-zinc-700/40 pt-4">
+
+                                  {/* Prices + lot size */}
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                      { label: "Entry", value: trade.entryPrice.toFixed(2) },
+                                      { label: "Exit", value: trade.exitPrice.toFixed(2) },
+                                      { label: "Lot Size", value: trade.lotSize.toFixed(2) },
+                                    ].map(({ label, value }) => (
+                                      <div key={label} className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                        <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">{label}</p>
+                                        <p className="text-sm font-semibold text-white tabular-nums">{value}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* Emotion + Rating */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-1">Psychology</p>
+                                      <p className="text-xs text-zinc-300 font-medium">{trade.emotion}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-1">Setup Rating</p>
+                                      <div className="flex gap-0.5">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                          <svg
+                                            key={i}
+                                            className={cn("w-3.5 h-3.5", i < trade.rating ? "text-amber-400" : "text-zinc-700")}
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                          </svg>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Screenshots */}
+                                  <div>
+                                    <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Screenshots</p>
+                                    <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2">
+                                      <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
+                                        <Camera className="w-6 h-6" />
+                                        <span className="text-[11px] font-medium">Before Entry</span>
+                                        <span className="text-[10px] text-zinc-700">No screenshot attached</span>
+                                      </div>
+                                      <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
+                                        <ImagePlus className="w-6 h-6" />
+                                        <span className="text-[11px] font-medium">After Exit</span>
+                                        <span className="text-[10px] text-zinc-700">No screenshot attached</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Delete */}
+                                  <div className="flex justify-end pt-1">
+                                    <button
+                                      onClick={() => handleDelete(trade.id)}
+                                      className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      Delete trade
+                                    </button>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       );
                     })}
