@@ -11,6 +11,8 @@ function computePnl(trade: Trade): number {
 
 interface TradeCalendarProps {
   trades: Trade[];
+  selectedDate: string | null;
+  onDayClick: (dateKey: string | null) => void;
 }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -19,7 +21,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export function TradeCalendar({ trades }: TradeCalendarProps) {
+export function TradeCalendar({ trades, selectedDate, onDayClick }: TradeCalendarProps) {
   const today = new Date();
   const [current, setCurrent] = useState({ year: today.getFullYear(), month: today.getMonth() });
 
@@ -65,25 +67,40 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
     });
   }
 
+  function handleDayClick(key: string, hasTrade: boolean) {
+    if (!hasTrade) return;
+    onDayClick(selectedDate === key ? null : key);
+  }
+
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
       <div className="flex items-center justify-between mb-5">
         <h3 className="text-sm font-semibold text-white">
           {MONTHS[current.month]} {current.year}
         </h3>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={prev}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={next}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2">
+          {selectedDate && (
+            <button
+              onClick={() => onDayClick(null)}
+              className="text-[11px] font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2.5 py-1 rounded-lg transition-colors"
+            >
+              Show All
+            </button>
+          )}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={prev}
+              className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={next}
+              className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -107,17 +124,24 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
               const isProfit = hasTrade && pnl > 0;
               const isLoss = hasTrade && pnl < 0;
               const isBreakeven = hasTrade && pnl === 0;
+              const isSelected = selectedDate === key;
 
               return (
-                <div
+                <button
                   key={di}
+                  type="button"
+                  onClick={() => handleDayClick(key, hasTrade)}
                   className={cn(
-                    "relative flex flex-col items-center justify-center rounded-lg aspect-square text-xs font-medium transition-all",
-                    !hasTrade && "text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300",
-                    isProfit && "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25",
-                    isLoss && "bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25",
-                    isBreakeven && "bg-zinc-700/40 text-zinc-400 border border-zinc-600/30",
-                    isToday && !hasTrade && "ring-1 ring-amber-500/60 text-amber-400"
+                    "relative flex flex-col items-center justify-center rounded-lg aspect-square text-xs font-medium transition-all focus:outline-none",
+                    !hasTrade && "text-zinc-500 cursor-default",
+                    hasTrade && "cursor-pointer",
+                    !isSelected && isProfit && "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/30",
+                    !isSelected && isLoss && "bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/30",
+                    !isSelected && isBreakeven && "bg-zinc-700/40 text-zinc-400 border border-zinc-600/30",
+                    !isSelected && isToday && !hasTrade && "ring-1 ring-amber-500/60 text-amber-400",
+                    isSelected && "ring-2 ring-amber-400 ring-offset-1 ring-offset-zinc-900 scale-105 z-10",
+                    isSelected && isProfit && "bg-emerald-500/25 text-emerald-200 border border-emerald-400/40",
+                    isSelected && isLoss && "bg-red-500/25 text-red-200 border border-red-400/40",
                   )}
                 >
                   <span>{day}</span>
@@ -128,10 +152,10 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
                       isLoss && "text-red-400",
                       isBreakeven && "text-zinc-500"
                     )}>
-                      {isProfit ? "+" : ""}{pnl > 0 ? "" : pnl < 0 ? "-" : ""}${Math.abs(pnl).toFixed(0)}
+                      {isProfit ? "+" : pnl < 0 ? "-" : ""}${Math.abs(pnl).toFixed(0)}
                     </span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -151,7 +175,14 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
           <div className="w-2.5 h-2.5 rounded-sm bg-zinc-600/50 border border-zinc-600/30" />
           <span className="text-[11px] text-zinc-500">Breakeven</span>
         </div>
+        {hasTrades(pnlByDate) && (
+          <span className="text-[11px] text-zinc-600 ml-auto">Click a day to filter</span>
+        )}
       </div>
     </div>
   );
+}
+
+function hasTrades(pnlByDate: Record<string, number>) {
+  return Object.keys(pnlByDate).length > 0;
 }
