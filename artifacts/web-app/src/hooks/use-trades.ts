@@ -18,6 +18,7 @@ interface DbTrade {
   reason: string;
   emotion: string;
   rating: number;
+  notes?: string | null;
   before_screenshot_url?: string | null;
   after_screenshot_url?: string | null;
 }
@@ -35,6 +36,7 @@ function toTrade(row: DbTrade): Trade {
     reason: row.reason,
     emotion: row.emotion,
     rating: row.rating,
+    notes: row.notes ?? null,
     beforeScreenshotUrl: row.before_screenshot_url ?? null,
     afterScreenshotUrl: row.after_screenshot_url ?? null,
   };
@@ -52,6 +54,7 @@ function toDbRow(trade: Trade): Omit<DbTrade, "id" | "created_at"> {
     reason: trade.reason,
     emotion: trade.emotion,
     rating: trade.rating,
+    notes: trade.notes ?? null,
   };
 }
 

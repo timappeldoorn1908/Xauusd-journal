@@ -287,6 +287,13 @@ export default function Journal() {
                                     </div>
                                   </div>
 
+                                  {trade.notes && (
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Notes</p>
+                                      <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">{trade.notes}</p>
+                                    </div>
+                                  )}
+
                                   <div>
                                     <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Screenshots</p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -315,21 +322,21 @@ export default function Journal() {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center justify-between pt-1">
+                                  <div className="flex items-center justify-between pt-1 gap-2">
                                     <button
                                       onClick={() => setEditingTrade(trade)}
-                                      className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                                      className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-xl transition-colors active:bg-amber-500/20"
                                     >
                                       <Pencil className="w-3.5 h-3.5" />
-                                      Edit trade
+                                      Edit
                                     </button>
                                     <button
                                       onClick={() => handleDelete(trade.id, trade.date)}
                                       disabled={isDeleting}
-                                      className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                      className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2.5 rounded-xl transition-colors active:bg-red-500/20 disabled:opacity-50"
                                     >
                                       {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                      Delete trade
+                                      Delete
                                     </button>
                                   </div>
                                 </div>

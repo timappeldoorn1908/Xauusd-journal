@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { PnlDisplay } from "@/components/pnl-display";
 import { StarRating } from "@/components/star-rating";
 import { Trade } from "@/components/weekly-summary";
@@ -69,6 +70,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
   const [customReason, setCustomReason] = useState(initCustomReason);
   const [emotion, setEmotion] = useState(initialTrade?.emotion ?? "");
   const [rating, setRating] = useState(initialTrade?.rating ?? 0);
+  const [notes, setNotes] = useState(initialTrade?.notes ?? "");
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
 
@@ -101,6 +103,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
       reason: finalReason,
       emotion,
       rating,
+      notes: notes.trim() || null,
       beforeScreenshotUrl: initialTrade?.beforeScreenshotUrl,
       afterScreenshotUrl: initialTrade?.afterScreenshotUrl,
     };
@@ -119,6 +122,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
       setCustomReason("");
       setEmotion("");
       setRating(0);
+      setNotes("");
       setBeforeFile(null);
       setAfterFile(null);
       setDate(today);
@@ -384,6 +388,17 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Notes</Label>
+        <Textarea
+          placeholder="Market conditions, observations, lessons learned…"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          className="bg-zinc-800/50 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20 resize-none"
+        />
       </div>
 
       <Separator className="bg-zinc-800" />

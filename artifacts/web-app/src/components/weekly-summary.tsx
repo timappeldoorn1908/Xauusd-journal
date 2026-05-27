@@ -13,6 +13,7 @@ export interface Trade {
   reason: string;
   emotion: string;
   rating: number;
+  notes?: string | null;
   beforeScreenshotUrl?: string | null;
   afterScreenshotUrl?: string | null;
 }
