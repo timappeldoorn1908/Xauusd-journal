@@ -21,6 +21,7 @@ const REASONS = [
   "News / Fundamental",
   "SMC Setup",
   "Price Action Signal",
+  "Elliott Wave",
   "Other",
 ];
 
@@ -51,6 +52,7 @@ export function NewTradeForm({ onSave }: NewTradeFormProps) {
   const [exitPrice, setExitPrice] = useState("");
   const [lotSize, setLotSize] = useState("");
   const [reason, setReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
   const [emotion, setEmotion] = useState("");
   const [rating, setRating] = useState(0);
   const [beforeLabel, setBeforeLabel] = useState<string | null>(null);
@@ -62,7 +64,8 @@ export function NewTradeForm({ onSave }: NewTradeFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!date || !entryPrice || !exitPrice || !lotSize || !reason || !emotion) {
+    const finalReason = reason === "Other" ? customReason.trim() : reason;
+    if (!date || !entryPrice || !exitPrice || !lotSize || !finalReason || !emotion) {
       toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
@@ -73,7 +76,7 @@ export function NewTradeForm({ onSave }: NewTradeFormProps) {
       entryPrice: entry,
       exitPrice: exit,
       lotSize: lots,
-      reason,
+      reason: finalReason,
       emotion,
       rating,
     };
@@ -83,6 +86,7 @@ export function NewTradeForm({ onSave }: NewTradeFormProps) {
     setExitPrice("");
     setLotSize("");
     setReason("");
+    setCustomReason("");
     setEmotion("");
     setRating(0);
     setBeforeLabel(null);
@@ -187,7 +191,7 @@ export function NewTradeForm({ onSave }: NewTradeFormProps) {
         <div className="space-y-5">
           <div className="space-y-2">
             <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Reason for Trade</Label>
-            <Select value={reason} onValueChange={setReason}>
+            <Select value={reason} onValueChange={(v) => { setReason(v); if (v !== "Other") setCustomReason(""); }}>
               <SelectTrigger className="bg-zinc-800/50 border-zinc-700 text-white focus:border-amber-500/50 focus:ring-amber-500/20 data-[placeholder]:text-zinc-600">
                 <SelectValue placeholder="Select a reason…" />
               </SelectTrigger>
@@ -199,6 +203,15 @@ export function NewTradeForm({ onSave }: NewTradeFormProps) {
                 ))}
               </SelectContent>
             </Select>
+            {reason === "Other" && (
+              <Input
+                autoFocus
+                placeholder="Describe your reason…"
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                className="bg-zinc-800/50 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20 mt-2"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
