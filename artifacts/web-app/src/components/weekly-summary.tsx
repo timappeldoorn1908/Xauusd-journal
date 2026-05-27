@@ -104,15 +104,15 @@ export function WeeklySummary({ trades }: WeeklySummaryProps) {
           {hasData && <p className="text-xs text-zinc-500 mt-1">Risk / Reward</p>}
         </div>
 
-        <div className="rounded-xl bg-zinc-800/50 border border-zinc-700/40 p-3.5">
+        <div className="rounded-xl bg-zinc-800/50 border border-zinc-700/40 p-3.5 min-w-0">
           <p className="text-[11px] uppercase tracking-widest text-zinc-500 mb-2">Total P&amp;L</p>
-          <div className="flex items-center gap-1">
-            {hasData && totalPnl > 0 && <TrendingUp className="w-4 h-4 text-emerald-400 shrink-0" />}
-            {hasData && totalPnl < 0 && <TrendingDown className="w-4 h-4 text-red-400 shrink-0" />}
-            {hasData && totalPnl === 0 && <Minus className="w-4 h-4 text-zinc-400 shrink-0" />}
+          <div className="flex items-center gap-1 min-w-0">
+            {hasData && totalPnl > 0 && <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0 hidden sm:block" />}
+            {hasData && totalPnl < 0 && <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400 shrink-0 hidden sm:block" />}
+            {hasData && totalPnl === 0 && <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 shrink-0 hidden sm:block" />}
             <p
               className={cn(
-                "text-2xl font-bold tabular-nums",
+                "text-sm sm:text-2xl font-bold tabular-nums truncate",
                 !hasData && "text-zinc-600",
                 hasData && totalPnl > 0 && "text-emerald-400",
                 hasData && totalPnl < 0 && "text-red-400",

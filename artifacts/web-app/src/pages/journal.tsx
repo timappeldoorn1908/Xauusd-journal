@@ -284,7 +284,7 @@ export default function Journal() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-5 text-right">
+                          <div className="flex items-center gap-2 sm:gap-5 text-right">
                             <div>
                               <p className="text-[11px] text-zinc-600 mb-0.5">Pips</p>
                               <p className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
@@ -297,7 +297,7 @@ export default function Journal() {
                                 {pnl >= 0 ? "+$" : "-$"}{Math.abs(pnl).toFixed(2)}
                               </p>
                             </div>
-                            <div className="flex">
+                            <div className="hidden sm:flex">
                               {Array.from({ length: 5 }, (_, i) => (
                                 <svg
                                   key={i}
@@ -311,7 +311,7 @@ export default function Journal() {
                             </div>
                             <button
                               onClick={() => handleDelete(trade.id)}
-                              className="ml-1 p-1.5 rounded-lg text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                              className="ml-1 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                               title="Delete trade"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
