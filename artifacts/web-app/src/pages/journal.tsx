@@ -331,10 +331,9 @@ export default function Journal() {
     <span className="text-[10px] text-zinc-700">No screenshot attached</span>
   </div>
 )}
-                                          
-                                    </div>
-                                  </div>
-
+                                                    </div>
+        </div>
+                                
                                   <div className="flex items-center justify-between pt-1 gap-2">
                                     <button
                                       onClick={() => setEditingTrade(trade)}
