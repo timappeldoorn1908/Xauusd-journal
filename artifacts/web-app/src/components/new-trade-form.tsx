@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { PnlDisplay } from "@/components/pnl-display";
 import { StarRating } from "@/components/star-rating";
 import { Trade } from "@/components/weekly-summary";
-import { Camera, ImagePlus, TrendingDown, TrendingUp } from "lucide-react";
+import { Camera, ImagePlus, TrendingDown, TrendingUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,10 +39,11 @@ const EMOTIONS = [
 ];
 
 interface NewTradeFormProps {
-  onSave: (trade: Trade) => void;
+  onSave: (trade: Trade) => void | Promise<void>;
+  saving?: boolean;
 }
 
-export function NewTradeForm({ onSave }: NewTradeFormProps) {
+export function NewTradeForm({ onSave, saving = false }: NewTradeFormProps) {
   const { toast } = useToast();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -284,9 +285,11 @@ export function NewTradeForm({ onSave }: NewTradeFormProps) {
       <div className="flex justify-end">
         <Button
           type="submit"
-          className="bg-amber-500 hover:bg-amber-400 text-black font-semibold px-8 py-2.5 rounded-xl transition-colors"
+          disabled={saving}
+          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold px-8 py-2.5 rounded-xl transition-colors disabled:opacity-60"
         >
-          Save Trade
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {saving ? "Saving…" : "Save Trade"}
         </Button>
       </div>
     </form>

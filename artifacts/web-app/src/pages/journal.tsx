@@ -3,88 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { NewTradeForm } from "@/components/new-trade-form";
 import { TradeCalendar } from "@/components/trade-calendar";
 import { WeeklySummary, Trade } from "@/components/weekly-summary";
+import { useTrades, useInsertTrade, useDeleteTrade } from "@/hooks/use-trades";
 import { cn } from "@/lib/utils";
-import { BarChart2, PlusCircle, Trash2, X, ChevronDown, Camera, ImagePlus } from "lucide-react";
-
-const SAMPLE_TRADES: Trade[] = [
-  {
-    id: "1",
-    date: "2026-05-05",
-    direction: "long",
-    entryPrice: 2620.5,
-    exitPrice: 2648.2,
-    lotSize: 0.5,
-    reason: "Order Block",
-    emotion: "Calm & Focused",
-    rating: 5,
-  },
-  {
-    id: "2",
-    date: "2026-05-07",
-    direction: "short",
-    entryPrice: 2655.0,
-    exitPrice: 2638.5,
-    lotSize: 0.3,
-    reason: "Fair Value Gap",
-    emotion: "Confident",
-    rating: 4,
-  },
-  {
-    id: "3",
-    date: "2026-05-12",
-    direction: "long",
-    entryPrice: 2641.0,
-    exitPrice: 2629.5,
-    lotSize: 0.4,
-    reason: "Trendline Bounce",
-    emotion: "Impatient",
-    rating: 2,
-  },
-  {
-    id: "4",
-    date: "2026-05-14",
-    direction: "short",
-    entryPrice: 2668.0,
-    exitPrice: 2645.0,
-    lotSize: 0.5,
-    reason: "Liquidity Sweep",
-    emotion: "Disciplined",
-    rating: 5,
-  },
-  {
-    id: "5",
-    date: "2026-05-19",
-    direction: "long",
-    entryPrice: 2630.0,
-    exitPrice: 2622.5,
-    lotSize: 0.2,
-    reason: "Support / Resistance",
-    emotion: "Fearful",
-    rating: 2,
-  },
-  {
-    id: "6",
-    date: "2026-05-21",
-    direction: "long",
-    entryPrice: 2615.0,
-    exitPrice: 2644.0,
-    lotSize: 0.6,
-    reason: "Break of Structure",
-    emotion: "Calm & Focused",
-    rating: 5,
-  },
-  {
-    id: "7",
-    date: "2026-05-26",
-    direction: "short",
-    entryPrice: 2658.0,
-    exitPrice: 2641.0,
-    lotSize: 0.4,
-    reason: "Order Block",
-    emotion: "Confident",
-    rating: 4,
-  },
-];
+import { BarChart2, PlusCircle, Trash2, X, ChevronDown, Camera, ImagePlus, Loader2, AlertCircle } from "lucide-react";
 
 type Tab = "new-trade" | "overview";
 
@@ -102,25 +23,26 @@ function tradePips(trade: Trade) {
 
 export default function Journal() {
   const [activeTab, setActiveTab] = useState<Tab>("new-trade");
-  const [trades, setTrades] = useState<Trade[]>(SAMPLE_TRADES);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  function handleSave(trade: Trade) {
-    setTrades((prev) => [...prev, trade]);
+  const { data: trades = [], isLoading, isError, error } = useTrades();
+  const insertTrade = useInsertTrade();
+  const deleteTrade = useDeleteTrade();
+
+  async function handleSave(trade: Trade) {
+    await insertTrade.mutateAsync(trade);
     setSelectedDate(null);
     setActiveTab("overview");
   }
 
-  function handleDelete(id: string) {
-    setTrades((prev) => {
-      const next = prev.filter((t) => t.id !== id);
-      if (selectedDate) {
-        const stillHasDay = next.some((t) => t.date.slice(0, 10) === selectedDate);
-        if (!stillHasDay) setSelectedDate(null);
-      }
-      return next;
-    });
+  function handleDelete(id: string, date: string) {
+    const remainingOnDay = trades.filter(
+      (t) => t.id !== id && t.date.slice(0, 10) === date.slice(0, 10)
+    );
+    if (selectedDate && remainingOnDay.length === 0) setSelectedDate(null);
+    if (expandedId === id) setExpandedId(null);
+    deleteTrade.mutate(id);
   }
 
   const sortedTrades = [...trades].sort(
@@ -189,18 +111,28 @@ export default function Journal() {
                 <h2 className="text-base font-semibold text-white">Log a Trade</h2>
                 <p className="text-xs text-zinc-500 mt-0.5">Record your XAUUSD trade with full context and analysis.</p>
               </div>
-              <NewTradeForm onSave={handleSave} />
+              <NewTradeForm onSave={handleSave} saving={insertTrade.isPending} />
             </div>
           )}
 
           {activeTab === "overview" && (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-base font-semibold text-white mb-1">Overview</h2>
-                <p className="text-xs text-zinc-500">
-                  {trades.length} trade{trades.length !== 1 ? "s" : ""} recorded
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-white mb-1">Overview</h2>
+                  <p className="text-xs text-zinc-500">
+                    {isLoading ? "Loading…" : `${trades.length} trade${trades.length !== 1 ? "s" : ""} recorded`}
+                  </p>
+                </div>
+                {isLoading && <Loader2 className="w-4 h-4 text-zinc-600 animate-spin" />}
               </div>
+
+              {isError && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 flex items-center gap-2.5 text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{(error as Error)?.message ?? "Failed to load trades"}</span>
+                </div>
+              )}
 
               <WeeklySummary trades={trades} />
 
@@ -239,9 +171,14 @@ export default function Journal() {
                   )}
                 </div>
 
-                {filteredTrades.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-10 gap-2 text-zinc-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Loading trades…</span>
+                  </div>
+                ) : filteredTrades.length === 0 ? (
                   <div className="text-center py-8 text-zinc-600 text-sm">
-                    No trades recorded
+                    {trades.length === 0 ? "No trades yet — log your first trade." : "No trades on this day."}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -250,18 +187,20 @@ export default function Journal() {
                       const pips = tradePips(trade);
                       const isProfit = pnl > 0;
                       const isExpanded = expandedId === trade.id;
+                      const isDeleting = deleteTrade.isPending && deleteTrade.variables === trade.id;
 
                       return (
                         <div
                           key={trade.id}
                           className={cn(
                             "group rounded-xl border transition-colors overflow-hidden",
+                            isDeleting && "opacity-50 pointer-events-none",
                             isExpanded
                               ? "bg-zinc-800/60 border-zinc-600/50"
                               : "bg-zinc-800/30 border-zinc-700/30 hover:bg-zinc-800/50"
                           )}
                         >
-                          {/* Summary row — always visible, tap to expand */}
+                          {/* Summary row */}
                           <button
                             type="button"
                             onClick={() => setExpandedId(isExpanded ? null : trade.id)}
@@ -333,7 +272,6 @@ export default function Journal() {
                                 style={{ overflow: "hidden" }}
                               >
                                 <div className="px-4 pb-4 space-y-4 border-t border-zinc-700/40 pt-4">
-
                                   {/* Prices + lot size */}
                                   <div className="grid grid-cols-3 gap-2">
                                     {[
@@ -374,7 +312,7 @@ export default function Journal() {
                                   {/* Screenshots */}
                                   <div>
                                     <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Screenshots</p>
-                                    <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                       <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
                                         <Camera className="w-6 h-6" />
                                         <span className="text-[11px] font-medium">Before Entry</span>
@@ -391,10 +329,14 @@ export default function Journal() {
                                   {/* Delete */}
                                   <div className="flex justify-end pt-1">
                                     <button
-                                      onClick={() => handleDelete(trade.id)}
-                                      className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                                      onClick={() => handleDelete(trade.id, trade.date)}
+                                      disabled={isDeleting}
+                                      className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      {isDeleting
+                                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        : <Trash2 className="w-3.5 h-3.5" />
+                                      }
                                       Delete trade
                                     </button>
                                   </div>
