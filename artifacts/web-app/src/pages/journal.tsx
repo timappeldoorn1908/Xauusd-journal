@@ -299,26 +299,39 @@ export default function Journal() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                       {trade.beforeScreenshotUrl ? (
                                         <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
-                                          <img src={trade.beforeScreenshotUrl} alt="Before entry" className="w-full h-full object-cover" />
-                                        </div>
-                                      ) : (
-                                        <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
-                                          <Camera className="w-6 h-6" />
-                                          <span className="text-[11px] font-medium">Before Entry</span>
-                                          <span className="text-[10px] text-zinc-700">No screenshot attached</span>
-                                        </div>
-                                      )}
-                                      {trade.afterScreenshotUrl ? (
-                                        <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
-                                          <img src={trade.afterScreenshotUrl} alt="After exit" className="w-full h-full object-cover" />
-                                        </div>
-                                      ) : (
-                                        <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
-                                          <ImagePlus className="w-6 h-6" />
-                                          <span className="text-[11px] font-medium">After Exit</span>
-                                          <span className="text-[10px] text-zinc-700">No screenshot attached</span>
-                                        </div>
-                                      )}
+                                          {trade.beforeScreenshotUrl ? (
+  <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
+    <img 
+      src={trade.beforeScreenshotUrl} 
+      alt="Before entry" 
+      className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+      onClick={() => window.open(trade.beforeScreenshotUrl, '_blank')}
+    />
+  </div>
+) : (
+  <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
+    <Camera className="w-6 h-6" />
+    <span className="text-[11px] font-medium">Before Entry</span>
+    <span className="text-[10px] text-zinc-700">No screenshot attached</span>
+  </div>
+)}
+{trade.afterScreenshotUrl ? (
+  <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
+    <img 
+      src={trade.afterScreenshotUrl} 
+      alt="After exit" 
+      className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+      onClick={() => window.open(trade.afterScreenshotUrl, '_blank')}
+    />
+  </div>
+) : (
+  <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
+    <ImagePlus className="w-6 h-6" />
+    <span className="text-[11px] font-medium">After Exit</span>
+    <span className="text-[10px] text-zinc-700">No screenshot attached</span>
+  </div>
+)}
+                                          
                                     </div>
                                   </div>
 
