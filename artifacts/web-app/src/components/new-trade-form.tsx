@@ -64,13 +64,12 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
   const [date, setDate] = useState(initialTrade?.date ?? today);
   const [type, setType] = useState<"long" | "short">(initialTrade?.type ?? "long");
   const [entryPrice, setEntryPrice] = useState(initialTrade ? String(initialTrade.entryPrice) : "");
+  const [stopLoss, setStopLoss] = useState(initialTrade ? String((initialTrade as any).stopLoss ?? "") : "");
   
-  // Nieuwe state voor partials (meerdere exits)
   const [partials, setPartials] = useState<{ price: string; lots: string }[]>(
-    // @ts-ignore - we laden de partials in als ze bestaan, anders de standaard exit/lots
     (initialTrade as any)?.partials?.length > 0 
       ? (initialTrade as any).partials.map((p: any) => ({ price: String(p.price), lots: String(p.lots) }))
-      : [{ price: initialTrade ? String(initialTrade.exitPrice) : "", lots: initialTrade ? String(initialTrade.lotSize) : "" }]
+      : [{ price: initialTrade && initialTrade.exitPrice > 0 ? String(initialTrade.exitPrice) : "", lots: initialTrade && initialTrade.lotSize > 0 ? String(initialTrade.lotSize) : "" }]
   );
 
   const [reason, setReason] = useState(initReason);
@@ -81,7 +80,6 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
 
-  // Preview berekeningen voor live weergave van de winst/verlies
   const previewEntry = parseFloat(entryPrice) || 0;
   const previewMult = type === "long" ? 1 : -1;
   let previewLots = 0;
@@ -97,7 +95,6 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
   });
   const previewExit = previewLots > 0 ? previewWeightedExit / previewLots : 0;
 
-  // Functies om partials toe te voegen, aan te passen of te verwijderen
   const addPartial = () => setPartials([...partials, { price: "", lots: "" }]);
   const removePartial = (index: number) => setPartials(partials.filter((_, i) => i !== index));
   const updatePartial = (index: number, field: "price" | "lots", value: string) => {
@@ -108,15 +105,18 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const finalReason = reason === "Other" ? customReason.trim() : reason;
     
-    // Controleer of alle velden, inclusief alle partials, zijn ingevuld
-    if (!date || !entryPrice || !finalReason || !emotion || partials.some(p => !p.price || !p.lots)) {
-      toast({ title: "Missing fields", description: "Please fill in all required fields and exit levels.", variant: "destructive" });
+    // Alleen de echte basis is nu verplicht (Datum & Entry)
+    if (!date || !entryPrice) {
+      toast({ title: "Missing fields", description: "Date and Entry Price are required to open a trade.", variant: "destructive" });
       return;
     }
 
+    const finalReason = reason === "Other" ? customReason.trim() : (reason || "Pending");
+    const finalEmotion = emotion || "Pending";
+
     const entry = parseFloat(entryPrice) || 0;
+    const sl = parseFloat(stopLoss) || 0;
     const mult = type === "long" ? 1 : -1;
     
     let totalLots = 0;
@@ -124,14 +124,13 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
     let weightedExitSum = 0;
     const validPartials: {price: number, lots: number}[] = [];
 
-    // Bereken de exacte winst per afgesloten partial
     partials.forEach(p => {
       const pr = parseFloat(p.price) || 0;
       const l = parseFloat(p.lots) || 0;
       if (pr > 0 && l > 0) {
         totalLots += l;
         const raw = pr - entry;
-        totalPnl += raw * mult * l * 100; // PnL per partial
+        totalPnl += raw * mult * l * 100;
         weightedExitSum += (pr * l);
         validPartials.push({ price: pr, lots: l });
       }
@@ -139,8 +138,14 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
 
     const avgExit = totalLots > 0 ? weightedExitSum / totalLots : 0;
     const avgRaw = avgExit - entry;
-    const pips = Math.round(avgRaw * mult * 10 * 100) / 100;
+    const pips = totalLots > 0 ? Math.round(avgRaw * mult * 10 * 100) / 100 : 0;
     const pnl = Math.round(totalPnl * 100) / 100;
+
+    // Voeg de SL toe aan de notities als deze is ingevuld (voor de database)
+    let finalNotes = notes.trim();
+    if (sl > 0 && !finalNotes.includes(`SL: ${sl}`)) {
+      finalNotes = `SL: ${sl}\n\n${finalNotes}`.trim();
+    }
 
     const tradeBase = {
       id: initialTrade?.id ?? crypto.randomUUID(),
@@ -152,25 +157,26 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
       pips,
       pnl,
       reason: finalReason,
-      emotion,
+      emotion: finalEmotion,
       rating,
-      notes: notes.trim() || null,
+      notes: finalNotes || null,
       beforeScreenshotUrl: initialTrade?.beforeScreenshotUrl,
       afterScreenshotUrl: initialTrade?.afterScreenshotUrl,
     };
 
     const trade = tradeBase as Trade;
-    // We verstoppen de partials in het trade object zodat we ze later kunnen laten zien
     (trade as any).partials = validPartials;
+    (trade as any).stopLoss = sl;
 
     await onSave(trade, beforeFile, afterFile);
     toast({
-      title: isEditing ? "Trade updated" : "Trade saved",
-      description: isEditing ? "Your changes have been saved." : "Your trade has been added to the journal.",
+      title: isEditing ? "Trade updated" : "Trade opened",
+      description: isEditing ? "Your changes have been saved." : "Your open trade has been added.",
     });
 
     if (!isEditing) {
       setEntryPrice("");
+      setStopLoss("");
       setPartials([{ price: "", lots: "" }]);
       setReason("");
       setCustomReason("");
@@ -233,16 +239,29 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
           </div>
 
           <div className="space-y-4 bg-zinc-800/20 p-4 rounded-xl border border-zinc-700/50">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Entry Price</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="2650.00"
-                value={entryPrice}
-                onChange={(e) => setEntryPrice(e.target.value)}
-                className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Entry Price</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="2650.00"
+                  value={entryPrice}
+                  onChange={(e) => setEntryPrice(e.target.value)}
+                  className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Stop Loss</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="2640.00"
+                  value={stopLoss}
+                  onChange={(e) => setStopLoss(e.target.value)}
+                  className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:ring-red-500/20"
+                />
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -265,7 +284,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="Exit Price"
+                        placeholder="Exit Price (optional)"
                         value={partial.price}
                         onChange={(e) => updatePartial(index, 'price', e.target.value)}
                         className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
@@ -275,7 +294,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="Lots (e.g. 0.05)"
+                        placeholder="Lots (optional)"
                         value={partial.lots}
                         onChange={(e) => updatePartial(index, 'lots', e.target.value)}
                         className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
@@ -307,7 +326,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
             <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Reason for Trade</Label>
             <Select value={reason} onValueChange={(v) => { setReason(v); if (v !== "Other") setCustomReason(""); }}>
               <SelectTrigger className="bg-zinc-800/50 border-zinc-700 text-white focus:border-amber-500/50 focus:ring-amber-500/20 data-[placeholder]:text-zinc-600">
-                <SelectValue placeholder="Select a reason…" />
+                <SelectValue placeholder="Select a reason (optional)" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-700">
                 {REASONS.map((r) => (
@@ -332,7 +351,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
             <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Emotion / Psychology</Label>
             <Select value={emotion} onValueChange={setEmotion}>
               <SelectTrigger className="bg-zinc-800/50 border-zinc-700 text-white focus:border-amber-500/50 focus:ring-amber-500/20 data-[placeholder]:text-zinc-600">
-                <SelectValue placeholder="How were you feeling?" />
+                <SelectValue placeholder="How are you feeling? (optional)" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-700">
                 {EMOTIONS.map((e) => (
@@ -368,7 +387,6 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
               onChange={(e) => setAfterFile(e.target.files?.[0] ?? null)}
             />
             <div className="grid grid-cols-2 gap-3">
-              {/* Before Entry */}
               <div className="space-y-1.5">
                 {initialTrade?.beforeScreenshotUrl && !beforeFile && (
                   <div className="relative rounded-lg overflow-hidden border border-zinc-700/40 aspect-video">
@@ -418,7 +436,6 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
                 </div>
               </div>
 
-              {/* After Exit */}
               <div className="space-y-1.5">
                 {initialTrade?.afterScreenshotUrl && !afterFile && (
                   <div className="relative rounded-lg overflow-hidden border border-zinc-700/40 aspect-video">
