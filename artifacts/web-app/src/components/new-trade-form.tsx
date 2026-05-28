@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PnlDisplay } from "@/components/pnl-display";
 import { StarRating } from "@/components/star-rating";
 import { Trade } from "@/components/weekly-summary";
-import { Camera, ImagePlus, TrendingDown, TrendingUp, Loader2, X, RefreshCw } from "lucide-react";
+import { Camera, ImagePlus, TrendingDown, TrendingUp, Loader2, X, RefreshCw, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -64,8 +64,15 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
   const [date, setDate] = useState(initialTrade?.date ?? today);
   const [type, setType] = useState<"long" | "short">(initialTrade?.type ?? "long");
   const [entryPrice, setEntryPrice] = useState(initialTrade ? String(initialTrade.entryPrice) : "");
-  const [exitPrice, setExitPrice] = useState(initialTrade ? String(initialTrade.exitPrice) : "");
-  const [lotSize, setLotSize] = useState(initialTrade ? String(initialTrade.lotSize) : "");
+  
+  // Nieuwe state voor partials (meerdere exits)
+  const [partials, setPartials] = useState<{ price: string; lots: string }[]>(
+    // @ts-ignore - we laden de partials in als ze bestaan, anders de standaard exit/lots
+    (initialTrade as any)?.partials?.length > 0 
+      ? (initialTrade as any).partials.map((p: any) => ({ price: String(p.price), lots: String(p.lots) }))
+      : [{ price: initialTrade ? String(initialTrade.exitPrice) : "", lots: initialTrade ? String(initialTrade.lotSize) : "" }]
+  );
+
   const [reason, setReason] = useState(initReason);
   const [customReason, setCustomReason] = useState(initCustomReason);
   const [emotion, setEmotion] = useState(initialTrade?.emotion ?? "");
@@ -74,30 +81,74 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
 
-  const entry = parseFloat(entryPrice) || 0;
-  const exit = parseFloat(exitPrice) || 0;
-  const lots = parseFloat(lotSize) || 0;
+  // Preview berekeningen voor live weergave van de winst/verlies
+  const previewEntry = parseFloat(entryPrice) || 0;
+  const previewMult = type === "long" ? 1 : -1;
+  let previewLots = 0;
+  let previewWeightedExit = 0;
+  
+  partials.forEach(p => {
+    const pr = parseFloat(p.price) || 0;
+    const l = parseFloat(p.lots) || 0;
+    if (pr > 0 && l > 0) {
+      previewLots += l;
+      previewWeightedExit += (pr * l);
+    }
+  });
+  const previewExit = previewLots > 0 ? previewWeightedExit / previewLots : 0;
+
+  // Functies om partials toe te voegen, aan te passen of te verwijderen
+  const addPartial = () => setPartials([...partials, { price: "", lots: "" }]);
+  const removePartial = (index: number) => setPartials(partials.filter((_, i) => i !== index));
+  const updatePartial = (index: number, field: "price" | "lots", value: string) => {
+    const newPartials = [...partials];
+    newPartials[index][field] = value;
+    setPartials(newPartials);
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const finalReason = reason === "Other" ? customReason.trim() : reason;
-    if (!date || !entryPrice || !exitPrice || !lotSize || !finalReason || !emotion) {
-      toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+    
+    // Controleer of alle velden, inclusief alle partials, zijn ingevuld
+    if (!date || !entryPrice || !finalReason || !emotion || partials.some(p => !p.price || !p.lots)) {
+      toast({ title: "Missing fields", description: "Please fill in all required fields and exit levels.", variant: "destructive" });
       return;
     }
 
-    const raw = exit - entry;
+    const entry = parseFloat(entryPrice) || 0;
     const mult = type === "long" ? 1 : -1;
-    const pips = Math.round(raw * mult * 10 * 100) / 100;
-    const pnl = Math.round(raw * mult * lots * 100 * 100) / 100;
+    
+    let totalLots = 0;
+    let totalPnl = 0;
+    let weightedExitSum = 0;
+    const validPartials: {price: number, lots: number}[] = [];
 
-    const trade: Trade = {
+    // Bereken de exacte winst per afgesloten partial
+    partials.forEach(p => {
+      const pr = parseFloat(p.price) || 0;
+      const l = parseFloat(p.lots) || 0;
+      if (pr > 0 && l > 0) {
+        totalLots += l;
+        const raw = pr - entry;
+        totalPnl += raw * mult * l * 100; // PnL per partial
+        weightedExitSum += (pr * l);
+        validPartials.push({ price: pr, lots: l });
+      }
+    });
+
+    const avgExit = totalLots > 0 ? weightedExitSum / totalLots : 0;
+    const avgRaw = avgExit - entry;
+    const pips = Math.round(avgRaw * mult * 10 * 100) / 100;
+    const pnl = Math.round(totalPnl * 100) / 100;
+
+    const tradeBase = {
       id: initialTrade?.id ?? crypto.randomUUID(),
       date,
       type,
       entryPrice: entry,
-      exitPrice: exit,
-      lotSize: lots,
+      exitPrice: Math.round(avgExit * 100) / 100,
+      lotSize: Math.round(totalLots * 100) / 100,
       pips,
       pnl,
       reason: finalReason,
@@ -108,6 +159,10 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
       afterScreenshotUrl: initialTrade?.afterScreenshotUrl,
     };
 
+    const trade = tradeBase as Trade;
+    // We verstoppen de partials in het trade object zodat we ze later kunnen laten zien
+    (trade as any).partials = validPartials;
+
     await onSave(trade, beforeFile, afterFile);
     toast({
       title: isEditing ? "Trade updated" : "Trade saved",
@@ -116,8 +171,7 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
 
     if (!isEditing) {
       setEntryPrice("");
-      setExitPrice("");
-      setLotSize("");
+      setPartials([{ price: "", lots: "" }]);
       setReason("");
       setCustomReason("");
       setEmotion("");
@@ -178,45 +232,73 @@ export function NewTradeForm({ initialTrade, onSave, saving = false }: NewTradeF
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-4 bg-zinc-800/20 p-4 rounded-xl border border-zinc-700/50">
             <div className="space-y-2">
-              <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Entry</Label>
+              <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Entry Price</Label>
               <Input
                 type="number"
                 step="0.01"
                 placeholder="2650.00"
                 value={entryPrice}
                 onChange={(e) => setEntryPrice(e.target.value)}
-                className="bg-zinc-800/50 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
+                className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Exit</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="2680.00"
-                value={exitPrice}
-                onChange={(e) => setExitPrice(e.target.value)}
-                className="bg-zinc-800/50 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Lots</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.10"
-                value={lotSize}
-                onChange={(e) => setLotSize(e.target.value)}
-                className="bg-zinc-800/50 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
-              />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Exits & Partials</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={addPartial}
+                  className="h-7 text-[10px] uppercase font-bold tracking-wider text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 px-3 rounded-lg"
+                >
+                  <Plus className="w-3 h-3 mr-1.5" /> Add Partial
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {partials.map((partial, index) => (
+                  <div key={index} className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Exit Price"
+                        value={partial.price}
+                        onChange={(e) => updatePartial(index, 'price', e.target.value)}
+                        className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Lots (e.g. 0.05)"
+                        value={partial.lots}
+                        onChange={(e) => updatePartial(index, 'lots', e.target.value)}
+                        className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
+                      />
+                    </div>
+                    {partials.length > 1 && (
+                      <Button
+                        type="button"
+                        onClick={() => removePartial(index)}
+                        className="h-10 w-10 shrink-0 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 rounded-xl flex items-center justify-center transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Result</Label>
-            <PnlDisplay type={type} entryPrice={entry} exitPrice={exit} lotSize={lots} />
+            <Label className="text-xs font-medium uppercase tracking-widest text-zinc-400">Total Result Preview</Label>
+            <PnlDisplay type={type} entryPrice={previewEntry} exitPrice={previewExit} lotSize={previewLots} />
           </div>
         </div>
 
