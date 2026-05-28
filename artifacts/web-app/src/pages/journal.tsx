@@ -53,7 +53,9 @@ export default function Journal() {
     deleteTrade.mutate(id);
   }
 
-  const sortedTrades = [...trades].sort(
+  // Hier is de fix: we draaien de lijst eerst om (.reverse) zodat de nieuwste bovenaan staan,
+  // daarna sorteren we ze op datum. Trades van dezelfde dag blijven nu perfect in volgorde staan!
+  const sortedTrades = [...trades].reverse().sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
@@ -257,18 +259,22 @@ export default function Journal() {
                                 style={{ overflow: "hidden" }}
                               >
                                 <div className="px-4 pb-4 space-y-4 border-t border-zinc-700/40 pt-4">
-                                  <div className="grid grid-cols-3 gap-2">
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
                                       <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">Avg Entry</p>
                                       <p className="text-sm font-semibold text-white tabular-nums">{trade.entryPrice.toFixed(2)}</p>
                                     </div>
                                     <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">Stop Loss</p>
+                                      <p className="text-sm font-semibold text-white tabular-nums">{(trade as any).stopLoss ? (trade as any).stopLoss.toFixed(2) : "-"}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
                                       <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">Avg Exit</p>
-                                      <p className="text-sm font-semibold text-white tabular-nums">{trade.exitPrice.toFixed(2)}</p>
+                                      <p className="text-sm font-semibold text-white tabular-nums">{trade.exitPrice > 0 ? trade.exitPrice.toFixed(2) : "-"}</p>
                                     </div>
                                     <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
                                       <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">Total Lots</p>
-                                      <p className="text-sm font-semibold text-white tabular-nums">{trade.lotSize.toFixed(2)}</p>
+                                      <p className="text-sm font-semibold text-white tabular-nums">{trade.lotSize > 0 ? trade.lotSize.toFixed(2) : "-"}</p>
                                     </div>
                                   </div>
 
