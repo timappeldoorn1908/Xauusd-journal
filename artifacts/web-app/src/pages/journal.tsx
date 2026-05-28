@@ -219,4 +219,184 @@ export default function Journal() {
                                     {trade.type}
                                   </span>
                                 </div>
-                                <p className="text-[11px] text-zinc-50
+                                <p className="text-[11px] text-zinc-500 mt-0.5 truncate">{trade.reason}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 sm:gap-4 text-right shrink-0 ml-2">
+                              <div>
+                                <p className="text-[11px] text-zinc-600 mb-0.5">Pips</p>
+                                <p className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
+                                  {trade.pips >= 0 ? "+" : ""}{trade.pips.toFixed(1)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] text-zinc-600 mb-0.5">P&amp;L</p>
+                                <p className={cn("text-sm font-semibold tabular-nums", isProfit ? "text-emerald-400" : "text-red-400")}>
+                                  {trade.pnl >= 0 ? "+$" : "-$"}{Math.abs(trade.pnl).toFixed(2)}
+                                </p>
+                              </div>
+                              <motion.div
+                                animate={{ rotate: isExpanded ? 180 : 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-zinc-500"
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </motion.div>
+                            </div>
+                          </button>
+
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <motion.div
+                                key="detail"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                style={{ overflow: "hidden" }}
+                              >
+                                <div className="px-4 pb-4 space-y-4 border-t border-zinc-700/40 pt-4">
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">Avg Entry</p>
+                                      <p className="text-sm font-semibold text-white tabular-nums">{trade.entryPrice.toFixed(2)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">Avg Exit</p>
+                                      <p className="text-sm font-semibold text-white tabular-nums">{trade.exitPrice.toFixed(2)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-0.5">Total Lots</p>
+                                      <p className="text-sm font-semibold text-white tabular-nums">{trade.lotSize.toFixed(2)}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Partials breakdown */}
+                                  {(trade as any).partials && (trade as any).partials.length > 0 && (
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Partials & Exits</p>
+                                      <div className="space-y-1.5">
+                                        {(trade as any).partials.map((p: any, i: number) => (
+                                          <div key={i} className="flex justify-between items-center text-xs">
+                                            <span className="text-zinc-400">Exit {i + 1}</span>
+                                            <span className="text-zinc-200 tabular-nums font-medium">{p.lots.toFixed(2)} lots @ {p.price.toFixed(2)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-1">Psychology</p>
+                                      <p className="text-xs text-zinc-300 font-medium">{trade.emotion}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-1">Setup Rating</p>
+                                      <div className="flex gap-0.5">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                          <svg key={i} className={cn("w-3.5 h-3.5", i < trade.rating ? "text-amber-400" : "text-zinc-700")} fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                          </svg>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {trade.notes && (
+                                    <div className="rounded-lg bg-zinc-900/60 border border-zinc-700/30 px-3 py-2.5">
+                                      <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-1.5">Notes</p>
+                                      <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">{trade.notes}</p>
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Screenshots</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {trade.beforeScreenshotUrl ? (
+                                        <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
+                                          <img 
+                                            src={trade.beforeScreenshotUrl} 
+                                            alt="Before entry" 
+                                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                            onClick={() => window.open(trade.beforeScreenshotUrl, '_blank')}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
+                                          <Camera className="w-6 h-6" />
+                                          <span className="text-[11px] font-medium">Before Entry</span>
+                                          <span className="text-[10px] text-zinc-700">No screenshot attached</span>
+                                        </div>
+                                      )}
+                                      {trade.afterScreenshotUrl ? (
+                                        <div className="rounded-xl overflow-hidden border border-zinc-700/40 aspect-video">
+                                          <img 
+                                            src={trade.afterScreenshotUrl} 
+                                            alt="After exit" 
+                                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                            onClick={() => window.open(trade.afterScreenshotUrl, '_blank')}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="rounded-xl border-2 border-dashed border-zinc-700/60 bg-zinc-900/40 aspect-video flex flex-col items-center justify-center gap-2 text-zinc-600">
+                                          <ImagePlus className="w-6 h-6" />
+                                          <span className="text-[11px] font-medium">After Exit</span>
+                                          <span className="text-[10px] text-zinc-700">No screenshot attached</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between pt-1 gap-2">
+                                    <button
+                                      onClick={() => setEditingTrade(trade)}
+                                      className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-xl transition-colors active:bg-amber-500/20"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(trade.id, trade.date)}
+                                      disabled={isDeleting}
+                                      className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2.5 rounded-xl transition-colors active:bg-red-500/20 disabled:opacity-50"
+                                    >
+                                      {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                      Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Edit Trade Dialog */}
+      <Dialog open={!!editingTrade} onOpenChange={(open) => { if (!open) setEditingTrade(null); }}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 max-w-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-white text-base font-semibold">Edit Trade</DialogTitle>
+            <p className="text-xs text-zinc-500 mt-0.5">Update the details of this trade. Screenshots can optionally be replaced.</p>
+          </DialogHeader>
+          {editingTrade && (
+            <NewTradeForm
+              initialTrade={editingTrade}
+              onSave={handleUpdate}
+              saving={updateTrade.isPending}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
